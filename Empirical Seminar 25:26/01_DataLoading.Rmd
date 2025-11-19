@@ -1,0 +1,122 @@
+---
+title: "01_DataLoading"
+author: "Niklas Jocher"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+```
+
+# Set global chunk options
+```{r,}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse) 
+```
+
+# Introduction
+
+This R Markdown document demonstrates loading, inspecting, and visualizing EEG amplitude data from a CSV file. We will perform the following steps:
+
+    1 Load the dataset.
+
+    2 Inspect the data.
+
+    3 Filter data for a single subject.
+
+    4 Plot amplitude over time by condition.
+
+    5 Compute and visualize average amplitude per subject.
+
+    6 Compute the grand average across all subjects.
+
+    7 Loop through the first 5 subjects and visualize their individual data.
+
+# 1. Load the CSV
+We start by loading the data from the CSV file: we load the csv with the two distractors and save it as a data frame called df_dist2 
+```{r,}
+data_path <- "/Users/niklasjocher/Desktop/ES data/ga_df_dist2.csv"
+df_dist2 <- read_csv(data_path)
+```
+
+# 2. Inspect the Data
+Let's look at the first few rows to understand the structure:
+```{r, }
+head(df_dist2)
+```
+
+# 3. Filter for Subject 0
+Now we want to look at the data for one subject only. To do this we create a new data frame and filter df_dist2 for our desired subject_id. In this case we choose subject_id = 0. 
+```{r, }
+df_dist_subj0 <- df_dist2 %>% filter(subject_id == 0)
+```
+
+# 4. Plot Amplitude Over Time by Condition (Subject 0)
+Now we can plot the data for subject 0. We plot time on the x-axis and the amplitude on the y-axis. Since we have two conditions  (distractor 1 and distractor 2) we use the hue parameter to show the change depending on the condition. 
+```{r, fig.align='center'}
+ggplot(df_dist_subj0, aes(x = time, y = Amplitude, color = condition)) +
+geom_line() +
+labs(title = "Amplitude over Time for Subject 0",
+x = "Time",
+y = "Amplitude")
+```
+
+# 5. Compute Average Amplitude per Subject and Time
+Now we want to look at the average. We group the data frame by subject and time 
+and then apply the mean function to get the average amplitude for each channel
+```{r,}
+df_avg <- df_dist2 %>%
+group_by(subject_id, time) %>%
+summarise(Amplitude = mean(Amplitude, na.rm = TRUE)) %>%
+ungroup()
+```
+
+# 6. Plot Average Amplitude Over Time per Subject
+Next we can plot the average amplitude over time for each subject. We use the hue parameter to show the different subjects.
+```{r, fig.align='center'}
+ggplot(df_avg, aes(x = time, y = Amplitude, color = factor(subject_id))) +
+geom_line() +
+theme(legend.position = "none") +
+labs(title = "Average Amplitude over Time per Subject",
+x = "Time",
+y = "Amplitude")
+```
+
+# 7. Compute Grand Average Across Subjects
+To get a group-level overview, we calculate the grand average across all subjects and plot the amplitude over time again:
+```{r, fig.align='center'}
+df_grand_avg_cond <- df_dist2 %>%
+  group_by(time, condition) %>%
+  summarise(Amplitude = mean(Amplitude, na.rm = TRUE)) %>%
+  ungroup()
+```
+And now we plot the df_grand_avg 
+```{r, fig.align='center'}
+ggplot(df_grand_avg_cond, aes(x = time, y = Amplitude, color = condition)) +
+  geom_line(size = 1) +
+  labs(
+    title = "Grand Average Amplitude over Time by Condition",
+    x = "Time",
+    y = "Amplitude"
+  ) +
+  theme_minimal()
+```
+
+# 8. Plot Individual Subjects (First 5)
+Finally, we loop through the first 5 subjects and plot their amplitude by condition:
+```{r, fig.align='center'}
+for(i in 0:4){
+df_subj <- df_dist2 %>% filter(subject_id == i)
+
+p <- ggplot(df_subj, aes(x = time, y = Amplitude, color = condition)) +
+geom_line() +
+labs(title = paste("Subject", i, "Amplitude over Time by Condition"),
+x = "Time",
+y = "Amplitude")
+
+print(p)
+}
+```
+
+# Conclusion
+This workflow demonstrates basic data exploration, subject-specific and grand average visualizations, and looping through multiple subjects. These steps form the foundation for further statistical analysis or feature extraction for the TRF data. 

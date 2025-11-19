@@ -1,0 +1,98 @@
+---
+title: "03_DataMerging"
+author: "Niklas Jocher"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+```
+
+# Set global chunk options
+```{r,}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse) 
+```
+
+
+# 0. Load the CSVs 
+First, we need to load the CSV files that we want to merge together. In this case, 
+using the prediction tendencies and TRFs seems like a good idea. 
+```{r,}
+data_path_trf <- "/Users/niklasjocher/Desktop/ES data/ga_df_dist2.csv"
+df_dist2 <- read_csv(data_path_trf)
+
+data_path_pd <- "/Users/niklasjocher/Desktop/ES data/prediction-values.csv"
+df_predict <- read_csv(data_path_pd)
+```
+
+# 1. Merge the CSVs
+Now that we have the CSVs in our env, we want to merge them. To do this we need to choose a parameter we want to merge the two files on. In our case we use the subject_id. 
+```{r,}
+df_merged <- inner_join(df_dist2, df_predict, by = "subject_id")
+```
+
+# 2. Summarize the new Dataframe
+Now that out two files are merged, we want to look at the file and summarize it.
+In line with the previous 02 file we are going to look at the time window 0.08 to 0.12. 
+```{r,}
+df_merged_t1 <- df_merged %>%
+  filter(time >= 0.08, time <= 0.2) %>%    # filter time window
+  group_by(subject_id, condition) %>%       # group by subject and condition
+  summarise(across(where(is.numeric), mean, na.rm = TRUE)) %>%
+  ungroup()
+
+head(df_merged_t1)
+```
+
+# 3. Plotting
+We are going to use a scatter plot for this. We put the Prediction tendencie on the x axis the amplitude on the y axis and use the color parameter to display the three conditions. WIth geom_smooth we can also add a regression line for each conditions.
+
+```{r, fig.align='center'}
+ggplot(df_merged_t1, aes(x = pred_tend, y = Amplitude, color = factor(condition))) +
+  geom_jitter(width = 0.1, height = 0, size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE, linewidth = 1.2) +
+  theme_minimal() +
+  labs(
+    title = "Mean Amplitude per Condition with Regression Lines",
+    x = "Pred Tend",
+    y = "Amplitude",
+    color = "Condition"
+  )
+```
+
+# 4. Correlation table 
+Maybe it would also be interesting to see if Amplitude and pred_tend correlate. 
+We can do this and ignore the conditions:
+```{r,}
+cor_table <- df_merged_t1 %>%
+  select(Amplitude, pred_tend) %>%
+  cor()
+
+
+cor_table
+```
+
+Or we do condition specific correlations
+```{r,}
+df_merged_t1 %>%
+  group_by(condition) %>%
+  summarise(correlation = cor(Amplitude, pred_tend))
+```
+
+# 5. Visualize Correlations 
+Scatterplots With Regression Lines faceted by condition
+```{r fig.align='center'}
+ggplot(df_merged_t1, aes(x = pred_tend, y = Amplitude, color = condition)) +
+  geom_point(alpha = 0.8, size = 2) +
+  geom_smooth(method = "lm", se = FALSE, linewidth = 1) +
+  facet_wrap(~ condition) +
+  theme_minimal() +
+  labs(
+    title = "Correlation Between Prediction Tendency and Amplitude per Condition",
+    x = "Prediction Tendency",
+    y = "Amplitude"
+  )
+```
+
+
