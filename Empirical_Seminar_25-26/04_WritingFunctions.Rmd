@@ -1,0 +1,315 @@
+---
+title: "04_WritingFunctions"
+author: "Niklas Jocher"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Set global chunk options
+```{r,}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse) 
+```
+# Writing Functions
+## Why do we need to write functions? 
+A function is a reusable little machine. You write it once, and then you never have to rewrite the same code again. This can be very time saving and makes your life much easier. 
+
+Let's look at an example: We have an arbitrary amount of variables _x_: 
+```{r,}
+x1 <- c(5, 7, 6, 9, 4)
+x2 <- c(12, 15, 14, 10, 13)
+x3 <- c(100, 110, 105, 95, 120)
+```
+Intuitively, we might want to scale them with their mean and standard deviation:
+```{r,}
+(x1 - mean(x1)) / sd(x1)
+(x2 - mean(x2)) / sd(x2)
+(x3 - mean(x3)) / sd(x3)
+```
+Now imagine we don't have three variables but 20. Typing the formula everytime isn't particularly efficient and it'll take up quite a lot of space. Let's look at the same scaling with a function:
+```{r,}
+scale_var <- function(x) {
+  (x - mean(x)) / sd(x)
+}
+
+scale_var(x1)
+scale_var(x2)
+scale_var(x3)
+```
+This doesn't only make it easier to apply the same method to more variables but also allows to change the way we scale without having to change every formula manually.
+Now that we know why functions are useful we will look at how to write one and what the building blocks are. 
+
+# Buildings Blocks of a Function
+We are going to start by using a simple model: 
+  (1) Name the function
+  (2) Create a “little machine” with inputs
+  (3) Tell R what to do
+  
+## Example
+When naming your function keep this in the back of your mind: If someone sees the name without seeing the code, they should guess what the function does. Also make sure to stick to one naming convention, either snake_case or camelCase. Lastly, 
+avoid overwriting existing R functions
+
+Examples: 
+
+| Good                 | Bad       |
+| -------------------- | --------- |
+| `clean_data()`       | `cd()`    |
+| `calculate_zscore()` | `calc1()` |
+| `plot_histogram()`   | `do_it()` |
+
+
+As a simple example we will go through a function that adds 10 to a numeric value _x_. We might want to name that function add_10(). To assign a name to a function we use the <- operator in combination with the _function_ call. In the function call we also have to define its inputs (or arguments). In our case we want to input a value _x_. 
+```{r,eval = FALSE}
+add_10 <- function(x)
+```
+
+We then add curly brackets after the function call. Everything that's inside those curly brackets runs when the function is called.
+
+```{r,}
+add_10 <- function(x) {
+  
+}
+```
+
+Inside the curly brackets we write the actual operation we want to do with our input. In our case add 10 to the input value _x_. 
+```{r,}
+add_10 <- function(x) {
+  x + 10
+}
+```
+
+Now lets try using our function: 
+```{r,}
+add_10 <- function(x) {
+  x + 10
+}
+
+x = 5
+add_10(x)
+```
+
+## Detecting Peaks
+All of this didn't really have that much to do with our data. Let's look at a more pratical example that might be useful for your analysis. When working with TRF data, one central component you might be interested in is the detection of peaks in a specific time window
+
+### 1. Inputs
+For our function to detect any peaks we need to feed it our _df_. It would also be good to tell it which colums of the df we need. Additionally, telling it the start and end time of the time window you are interested it is a good idea. 
+This results in the following parameters.
+
+1. df → data frame with columns for amplitude and time
+2. amplitude_col → name of the amplitude column
+3. time_col → name of the time column
+4. start_time → optional, start of the time window
+5. end_time → optional, end of the time window
+6. threshold → optional, minimum amplitude to consider a peak
+  
+
+### When is a peak a peak?
+Let's think about what we actually think about as a peak. Maybe something where the amplitude is higher than _anywhere else_? Or something when the amplitude is higher than the points that come before and after? 
+
+For this example we will stick with the second option: We define a peak as a point where the immediate temporal neighbors amplitudes are smaller than the one we are looking at. Let's call the function find_peaks(). 
+
+
+
+```{r,}
+# 1 
+find_peaks <- function(df,
+                              amplitude_col = "Amplitude",
+                              time_col = "Time",
+                              start_time = NULL,
+                              end_time = NULL,
+                              threshold = -Inf,
+                              plot_peaks = TRUE) {
+  
+  # 2 extract amplitude and time vectors
+  signal <- df[[amplitude_col]]
+  time <- df[[time_col]]
+  
+  # 3 filter by time window if provided
+  if(!is.null(start_time)) {
+    keep_start <- time >= start_time
+  } else {
+    keep_start <- rep(TRUE, length(time))
+  }
+  if(!is.null(end_time)) {
+    keep_end <- time <= end_time
+  } else {
+    keep_end <- rep(TRUE, length(time))
+  }
+  
+  keep <- keep_start & keep_end
+  signal_window <- signal[keep]
+  time_window <- time[keep]
+  indices_window <- which(keep)
+  
+  # 4 find peaks in the window
+  peaks <- c()
+  for(i in 2:(length(signal_window)-1)) {
+    if(signal_window[i] > signal_window[i-1] & signal_window[i] > signal_window[i+1] & signal_window[i] > threshold) {
+      peaks <- c(peaks, i)
+    }
+  }
+  
+  # 5 convert back to original indices
+  peaks_orig <- indices_window[peaks]
+  
+  
+  peak_df <- df[peaks_orig, , drop=FALSE]
+  
+  # 6 optional plotting
+  if(plot_peaks) {
+    plot(time, signal, type = "l", main = "TRF with Peaks")
+    points(time[peaks_orig], signal[peaks_orig], col = "red", pch = 19)
+  }
+  
+  return(peak_df)
+}
+```
+
+
+Let's go through each code block and figure out what it does: 
+1. Function definition and arguments
+This declares a function called find_peaks. The arguments define what the function needs to run:
+- df: data frame with your TRF data
+- amplitude_col & time_col: columns for amplitude and time
+- start_time & end_time: optional window to restrict analysis
+- threshold: minimum amplitude for a peak
+- plot_peaks: whether to generate a visualization
+
+```{r, eval = FALSE}
+find_peaks <- function(df,
+                              amplitude_col = "Amplitude",
+                              time_col = "Time",
+                              start_time = NULL,
+                              end_time = NULL,
+                              threshold = -Inf,
+                              plot_peaks = TRUE) {
+```
+
+2. Extract amplitude and time vectors
+```{r, eval = FALSE}
+  # 2 extract amplitude and time vectors
+  signal <- df[[amplitude_col]]
+  time <- df[[time_col]]
+```
+
+3. Filter by time window
+- Subsets the signal to only include the time points within the user-defined window.
+- If no window is provided, the entire signal is used.
+
+```{r, eval = FALSE}
+  if(!is.null(start_time)) {
+    keep_start <- time >= start_time
+  } else {
+    keep_start <- rep(TRUE, length(time))
+  }
+  if(!is.null(end_time)) {
+    keep_end <- time <= end_time
+  } else {
+    keep_end <- rep(TRUE, length(time))
+  }
+  
+  keep <- keep_start & keep_end
+  signal_window <- signal[keep]
+  time_window <- time[keep]
+  indices_window <- which(keep)
+```
+
+4. Identify peaks
+- Loops through the signal (ignoring first and last points).
+- Checks if each point is a local maximum and above the threshold.
+- Stores indices of identified peaks.
+```{r, eval = FALSE}
+  peaks <- c()
+  for(i in 2:(length(signal_window)-1)) {
+    if(signal_window[i] > signal_window[i-1] & signal_window[i] > signal_window[i+1] & signal_window[i] > threshold) {
+      peaks <- c(peaks, i)
+    }
+  }
+```
+
+5. Map back to original indices and create results table
+- Converts the peak indices from the windowed vector back to the original data frame.
+- Creates a subset of the original data containing only peaks.
+```{r, eval = FALSE}
+  peaks_orig <- indices_window[peaks]
+  peak_df <- df[peaks_orig, , drop=FALSE]
+```
+
+6. Optional plotting
+```{r, eval = FALSE}
+  if(plot_peaks) {
+    plot(time, signal, type = "l", main = "TRF with Peaks")
+    points(time[peaks_orig], signal[peaks_orig], col = "red", pch = 19)
+  }
+  
+  return(peak_df)
+}
+```
+
+
+## Using a function
+Let's use the find_peaks() function we just wrote: 
+
+First we load a data file and copy paste our function call underneath
+```{r,}
+data_path <- "/Users/niklasjocher/Desktop/ES data/ga_df_ss.csv"
+df <- read_csv(data_path)
+
+# 1 
+find_peaks <- function(df,
+                       amplitude_col = "Amplitude",
+                       time_col = "time",
+                       start_time = NULL,
+                       end_time = NULL,
+                       threshold = -Inf,
+                       plot_peaks = TRUE) {
+  
+  # 1. Extract amplitude and time vectors
+  signal <- as.numeric(df[[amplitude_col]])
+  time <- as.numeric(df[[time_col]])
+  
+  # 2. Filter by time window if provided
+  keep_start <- if(!is.null(start_time)) time >= start_time else rep(TRUE, length(time))
+  keep_end <- if(!is.null(end_time)) time <= end_time else rep(TRUE, length(time))
+  keep <- keep_start & keep_end
+  
+  signal_window <- signal[keep]
+  time_window <- time[keep]
+  indices_window <- which(keep)
+  
+  # 3. Find peaks safely
+  peaks <- c()
+  if(length(signal_window) >= 3) {  # need at least 3 points to compare neighbors
+    for(i in 2:(length(signal_window)-1)) {
+      if(signal_window[i] > signal_window[i-1] &
+         signal_window[i] > signal_window[i+1] &
+         signal_window[i] > threshold) {
+        peaks <- c(peaks, i)
+      }
+    }
+  }
+  
+  # 4. Map back to original indices
+  peaks_orig <- indices_window[peaks]
+  
+  # 5. Create results data frame
+  peak_df <- df[peaks_orig, , drop=FALSE]
+  
+  # 6. Optional plotting
+  if(plot_peaks) {
+    plot(time, signal, type="l", main="TRF with Peaks",
+         xlab="Time (s)", ylab="Amplitude")
+    points(time[peaks_orig], signal[peaks_orig], col="red", pch=19)
+  }
+  
+  # 7. Return peak table
+  return(peak_df)
+}
+
+find_peaks(df, start_time = 0.2, end_time = 0.7, threshold = 0.0002)
+```
+# Conclusion
+We now have a function that can detect peaks depending on the time window and with the option to define a threshold and to plot the results. Feel free to reuse this and also adapt it to your needs. 
