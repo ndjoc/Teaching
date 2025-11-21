@@ -311,5 +311,23 @@ find_peaks <- function(df,
 
 find_peaks(df, start_time = 0.2, end_time = 0.7, threshold = 0.0002)
 ```
+
+## Problems with this function
+Try playing around with the threshold parameter. Even if we set it to 0.0002 the function still finds a lot of peaks that aren't actual peaks, i.e. little bumps on the function that are higher in amplitude than the neighboring points. This isn't exactly what we are after. Scientifically, we can try to address this issue by using something called *prominence*. 
+
+Peak prominence describes how much a peak stands out compared to its immediate surroundings. In other words: Prominence measures how “tall” a peak is relative to the local baseline around it, not relative to absolute zero.
+
+This is caculated as follows: 
+
+$$
+p = x_{\text{peak}} - \max(x_{i-1}, x_{i+1})
+$$
+Let's look at some other possibilities we could try to implement: 
+1. Moving average smoothing to reduce micro-peaks (for this we need the zoo library)
+2. Flexible neighborhood comparison (not just ±1 point) to handle flat-topped peaks
+3. Threshold and prominence filters scaled to small TRF amplitudes
+
+There won't be more detail on how to implement those here. Just some ideas to consider when working with the data and how implementing things can effect what we get out of it. 
+
 # Conclusion
-We now have a function that can detect peaks depending on the time window and with the option to define a threshold and to plot the results. Feel free to reuse this and also adapt it to your needs. 
+The first find_peaks function can detect peaks depending on the time window and with the option to define a threshold and to plot the results. Feel free to play around with functions and use them in your own scripts when analysing your data :)  
