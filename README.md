@@ -12,6 +12,8 @@ Welcome! This repository contains materials for tutoring and example scripts/tut
 | `01_DataLoading.html` | Loading and visualizing TRF amplitude data | [View Online](https://ndjoc.github.io/Teaching/01_DataLoading.html) |
 | `02_DataSelection.html` | Selecting and filtering data, computing averages | [View Online](https://ndjoc.github.io/Teaching/02_DataSelection.html) |
 | `03_FileMerging.html` | Merging data frames and plotting regression relationships | [View Online](https://ndjoc.github.io/Teaching/03_FileMerging.html) |
+| `04_WritingFunctions.html` | How to write functions and use them | [View Online](https://ndjoc.github.io/Teaching/04_WritingFunctions.html) |
+
 
 ---
 
